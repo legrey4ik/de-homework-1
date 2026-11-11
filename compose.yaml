@@ -1,0 +1,71 @@
+name: dbt_shop
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: student
+      POSTGRES_PASSWORD: studentpass
+      PGPASSWORD: studentpass
+    ports:
+      - "127.0.0.1:${PG_PORT:-5436}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init/01_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "psql -h 127.0.0.1 -U student -d shop -Atc 'select count(*) from orders' | grep -qx 141"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+
+  greenplum:
+    image: andruche/greenplum:7-4seg@sha256:620d6c4863520685d6b475044195f766d3dfbc7c5a3fcfe965c8ac64f2ba47aa
+    hostname: gp-practice3
+    ports:
+      - "127.0.0.1:${GP_PORT:-5440}:5432"
+    shm_size: 512mb
+    volumes:
+      - gp_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "/usr/local/gpdb/bin/psql -h 127.0.0.1 -U gpadmin -d postgres -Atc 'select 1' | grep -qx 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 120
+
+  loader:
+    image: postgres:16-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+      greenplum:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: studentpass
+    volumes:
+      - ./loader/load_raw.sh:/loader/load_raw.sh:ro
+      - ./init/greenplum/create_raw.sql:/loader/create_raw.sql:ro
+    entrypoint: ["/bin/sh", "/loader/load_raw.sh"]
+    restart: 'no'
+
+  dbt:
+    build: .
+    image: dbt-shop:1.10
+    profiles: ["tools"]
+    depends_on:
+      loader:
+        condition: service_completed_successfully
+    environment:
+      DBT_HOST: greenplum
+      DBT_PORT: '5432'
+      DBT_PROFILES_DIR: /project
+      DBT_SEND_ANONYMOUS_USAGE_STATS: 'false'
+      DBT_VERSION_CHECK: 'false'
+    volumes:
+      - .:/project
+    ports:
+      - "127.0.0.1:${DOCS_PORT:-8080}:8080"
+
+volumes:
+  pg_data:
+  gp_data:

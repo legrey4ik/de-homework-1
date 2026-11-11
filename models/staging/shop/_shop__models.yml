@@ -1,0 +1,109 @@
+version: 2
+models:
+  - name: stg_shop__customers
+    description: "Клиенты из raw, одна строка — клиент."
+    columns:
+      - name: customer_id
+        description: "Ключ клиента."
+        data_tests: [unique, not_null]
+      - name: registered_at
+        description: "Время регистрации."
+      - name: registration_date
+        description: "Дата регистрации."
+      - name: city
+        description: "Город клиента."
+      - name: acquisition_channel
+        description: "Канал привлечения."
+
+  - name: stg_shop__products
+    description: "Товары из raw, одна строка — товар."
+    columns:
+      - name: product_id
+        description: "Ключ товара."
+        data_tests: [unique, not_null]
+      - name: category
+        description: "Название категории в источнике."
+
+  - name: stg_shop__product_categories
+    description: "Категории из raw, одна строка — категория."
+    columns:
+      - name: category_id
+        description: "Ключ категории."
+        data_tests: [unique, not_null]
+      - name: parent_category_id
+        description: "Родительская категория; null у корневой."
+      - name: category_name
+        description: "Название категории."
+
+  - name: stg_shop__orders
+    description: "Заказы из raw, включая тестовые."
+    columns:
+      - name: order_id
+        description: "Ключ заказа."
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: "Клиент."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_shop__customers')
+                field: customer_id
+      - name: order_status
+        description: "Статус заказа; test не попадает в marts."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['paid', 'pending', 'returned', 'cancelled', 'test']
+      - name: order_amount
+        description: "Сумма заказа после скидок."
+        data_tests: [non_negative]
+
+  - name: stg_shop__order_items
+    description: "Позиции из raw, одна строка — товар в заказе."
+    columns:
+      - name: order_item_id
+        description: "Ключ позиции вида 101-1."
+        data_tests: [unique, not_null]
+      - name: order_id
+        description: "Заказ."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_shop__orders')
+                field: order_id
+      - name: product_id
+        description: "Товар."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_shop__products')
+                field: product_id
+      - name: line_amount
+        description: "Стоимость позиции после скидок."
+        data_tests: [non_negative]
+
+  - name: stg_shop__payments
+    description: "Платёжные операции из raw."
+    columns:
+      - name: payment_id
+        description: "Ключ платёжной операции."
+        data_tests: [unique, not_null]
+      - name: order_id
+        description: "Заказ."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_shop__orders')
+                field: order_id
+      - name: payment_status
+        description: "Статус операции."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['success', 'failed', 'pending']
+      - name: is_refund
+        description: "Успешная операция с отрицательной суммой."

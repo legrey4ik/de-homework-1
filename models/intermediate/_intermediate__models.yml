@@ -1,0 +1,16 @@
+version: 2
+models:
+  - name: int_orders_with_payments
+    description: "Суммы платежей свёрнуты до заказа, затем присоединены к заказам."
+  - name: int_category_tree
+    description: "Дерево категорий: ближайший родитель и корень для каждой категории."
+  - name: int_order_items_enriched
+    description: "Позиции заказа с клиентом, датой и признаком подтверждения."
+  - name: int_order_item_counts
+    description: "Количество разных товаров по каждому заказу."
+  - name: int_orders_with_items
+    description: "Сводка заказа по платежам и количеству товаров."
+  - name: int_customer_metrics
+    description: "Первые подтверждённые покупки и агрегаты по клиентам."
+  - name: int_calendar
+    description: "Все дни между первым и последним заказами."
